@@ -3,6 +3,7 @@ open System.Numerics
 open System.Drawing
 open System
 open ImGuiNET
+open System.Text.RegularExpressions
 open ImGuiNET
 
 let BoolToEv ev = function | true -> Some ev | false -> None
@@ -27,5 +28,20 @@ let FInputText x (label:string, flags:InputTextFlags) =
     if ImGui.InputText (label, buff, TextBufferSize, flags, null) then
         buff |> ParseTextInputBuffer |> Some else None
 
+let FIntSlider x (label:string, min:int, max:int, text:string) =
+    let bref = ref x
+    if ImGui.SliderInt (label, bref, min, max, text) then Some !bref else None
+
 let FCheckbox x (label:string) =
     if ImGui.Checkbox (label, ref x) then not x |> Some else None
+
+let (|Regex|_|) pattern str =
+    let rmatch = Regex.Match (str, pattern)
+    if rmatch.Success then
+        rmatch.Groups |> Seq.toList |> List.map (fun x -> x.Value) |> Some
+    else None
+
+let (|Integer|_|) (str: string) =
+    let mutable intvalue = 0
+    if System.Int32.TryParse(str, &intvalue) then Some(intvalue)
+    else None

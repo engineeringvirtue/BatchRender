@@ -30,6 +30,7 @@ type Message =
     | RenderAddMsg of RenderEditor.Message
 
     | SetOptions of Options
+    | SetParallel of int
 
     | ClearStatus
     | ClearSTD

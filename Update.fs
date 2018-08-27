@@ -10,8 +10,9 @@ open Utility
 open RenderState
 
 let UpdateRenders state (box:Message -> Unit) =
-    let {Renders=renders; Status=status} = state
-    let renders =
+    let {Renders=renders; Status=status; Parallel=par} = state
+    
+    let updaterenderlist renders =
         match List.indexed renders |> List.tryFind (function | _,{State=NotStarted} -> true | _ -> false) with
             | Some (i, render) ->
                 let {Path=hip; ROP=rop; Persistent=persist} = render
@@ -22,6 +23,10 @@ let UpdateRenders state (box:Message -> Unit) =
 
                 renders |> List.mapi (fun i2 x -> if i=i2 then {render with State=(Starting, cancel) |> RenderProgress} else x)
             | None -> renders
+
+    let renders =
+        List.fold (fun state acc -> state |> updaterenderlist) renders [0..par]
+
     {state with Renders=renders;}
 
 let rec UpdateState (box:MailboxProcessor<Message>) = async {
@@ -89,6 +94,7 @@ let rec UpdateState (box:MailboxProcessor<Message>) = async {
                 ) |> Option.defaultValue state
 
             | RenderAddMsg x -> {state with RenderAdd=x |> RenderEditor.Update radd}
+            | SetParallel x -> {state with Parallel=x}
 
     state <- newstate
 
@@ -99,7 +105,7 @@ let mailbox = (MailboxProcessor.Start UpdateState).Post
 
 
 let RenderGui state =
-    let {Renders=renders; Status=status; STD=std, stdlog; RenderAdd=radd; Options=options, optdisplay} = state
+    let {Renders=renders; Status=status; STD=std, stdlog; Parallel=par; RenderAdd=radd; Options=options, optdisplay} = state
     ImGui.BeginMainMenuBar () |> ignore
 
     let opt = ImGui.MenuItem ("Options", true)
@@ -128,6 +134,9 @@ let RenderGui state =
     let add = ImGui.Button "Add to render queue"
     ImGui.SameLine ()
     let render = ImGui.Button "Render"
+
+    let changepar = par |> FIntSlider <| ("Paralellize renders", 0, 30, par.ToString ())
+                        |> Option.map SetParallel
 
     ImGui.BeginChild ("Status", Vector2 (ImGuiNative.igGetWindowContentRegionWidth (), 100.0f), true, WindowFlags.Default) |> ignore
     status |> List.iter (ImGui.TextWrapped)
@@ -199,6 +208,7 @@ let RenderGui state =
         clearstatus |> BoolToEv ClearStatus
         clearstd |> BoolToEv ClearSTD
         opt |> BoolToEv ToggleOptions
+        changepar
     ]
 
     msgs |> List.choose id |> (@) editormsgs |> List.iter mailbox
