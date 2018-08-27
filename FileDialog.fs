@@ -37,16 +37,19 @@ let GetFileName:string -> string = Path.GetFileName
 let GetDirName:string -> string = Path.GetFileName >> sprintf "/%s/"
 
 let Open = Open
+let SelectFile (x:string) y =
+    Path.GetDirectoryName x |> Dir |> Update y
+        |> Update <| Select x
+    
 
-let Render {AllowedFileTypes=x; Directory=dir; Contents=contents; Selected=selected; Visible=vis} updater =
+let Render {AllowedFileTypes=x; Directory=dir; Contents=contents; Selected=selected; Visible=vis} =
     if vis then
         ImGui.OpenPopup ("Choose file...")
         ImGui.BeginPopupModal ("Choose file...") |> ignore
 
         ImGui.GetContentRegionAvailableWidth () |> ImGui.PushItemWidth
 
-        let mutable buff = MakeTextInputBuffer dir
-        let changedir = ImGui.InputText ("", buff.contents, TextBufferSize, InputTextFlags.Default, null) |> BoolToEv (ParseTextInputBuffer !buff |> Dir)
+        let changedir = FInputText dir ("", InputTextFlags.Default) |> Option.map Dir
 
         ImGui.BeginChildFrame (uint32 1, ImGui.GetContentRegionAvailable()-Vector2(0.0f, 25.0f), WindowFlags.Default) |> ignore
 
@@ -82,4 +85,6 @@ let Render {AllowedFileTypes=x; Directory=dir; Contents=contents; Selected=selec
             up
             changedir
             close
-        ] |> List.choose id |> List.iter updater
+        ] |> List.choose id
+    
+    else []

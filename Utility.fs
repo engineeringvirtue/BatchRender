@@ -2,6 +2,8 @@ module Utility
 open System.Numerics
 open System.Drawing
 open System
+open ImGuiNET
+open ImGuiNET
 
 let BoolToEv ev = function | true -> Some ev | false -> None
 
@@ -16,6 +18,14 @@ let MakeTextInputBuffer (txt:string) =
     let mutable arr = Array.create 500 (Unchecked.defaultof<byte>)
     let txtbytes = System.Text.Encoding.Default.GetBytes txt
     Array.blit txtbytes 0 arr 0 txtbytes.Length
-    arr |> ref
+    arr
 
 let ParseTextInputBuffer = Array.choose (function | 0uy -> None | x -> Some x) >> System.Text.Encoding.Default.GetString
+
+let FInputText x (label:string, flags:InputTextFlags) =
+    let mutable buff = MakeTextInputBuffer x
+    if ImGui.InputText (label, buff, TextBufferSize, flags, null) then
+        buff |> ParseTextInputBuffer |> Some else None
+
+let FCheckbox x (label:string) =
+    if ImGui.Checkbox (label, ref x) then not x |> Some else None

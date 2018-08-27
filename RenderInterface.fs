@@ -5,6 +5,7 @@ open System.Text.RegularExpressions
 open System.Threading
 open System.IO
 open FSharp.Control
+open RenderState
 
 let (|Regex|_|) pattern str =
     let rmatch = Regex.Match (str, pattern)

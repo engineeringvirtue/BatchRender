@@ -7,6 +7,7 @@ open System.Runtime.InteropServices
 open System.IO
 open ImGuiNET
 open Utility
+open RenderState
 
 let UpdateRenders state (box:Message -> Unit) =
     let {Renders=renders; Status=status} = state
@@ -24,7 +25,7 @@ let UpdateRenders state (box:Message -> Unit) =
     {state with Renders=renders;}
 
 let rec UpdateState (box:MailboxProcessor<Message>) = async {
-    let {Renders=renders; HipPath=hippath; RopNode=rop; Options=options,optdisplay; Persistent=persist; Status=status; STD=std, stdlog} = state
+    let {Renders=renders; Options=options,optdisplay; RenderAdd=radd; Status=status; STD=std, stdlog} = state
     let log x = {state with Status=x::status}
 
     let! msg = box.Receive ()
@@ -33,10 +34,11 @@ let rec UpdateState (box:MailboxProcessor<Message>) = async {
     let newstate =
         match msg with
             | AddToQueue  ->
-                match hippath.Selected, ParseTextInputBuffer !rop with
+                match radd.HipPath.Selected, radd.ROP with
                     | None, _ -> log "Path is empty!"
                     | _, "" -> log "ROP path is empty!"
-                    | Some x, y when File.Exists (x) -> {state with Renders={Path=x; ROP=y; State=NotStarted; Persistent=(!persist)}::renders}
+                    | Some x, y when File.Exists (x) ->
+                        {state with Renders={Path=x; ROP=y; State=NotStarted; Persistent=radd.Persistent}::renders}
                     | _ -> log "Houdini file doesn't exist!"
             | SwapQueue (x,y) ->
                 let xitem = List.item x renders
@@ -48,7 +50,6 @@ let rec UpdateState (box:MailboxProcessor<Message>) = async {
             | SetOptions opt -> {state with Options = (opt, optdisplay)}
 
             | ToggleOptions -> {state with Options = options, not optdisplay}
-            | FileDialogMsg x -> {state with HipPath = FileDialog.Update hippath x}
 
             | StopRender i ->
                 let {State=x} = List.item i renders
@@ -87,16 +88,18 @@ let rec UpdateState (box:MailboxProcessor<Message>) = async {
 
                 ) |> Option.defaultValue state
 
+            | RenderAddMsg x -> {state with RenderAdd=x |> RenderEditor.Update radd}
+
     state <- newstate
 
     return! UpdateState box
 }
 
 let mailbox = (MailboxProcessor.Start UpdateState).Post
-let FOREVER = nativeint 1
+
 
 let RenderGui state =
-    let {Renders=renders; HipPath=path; RopNode=rop; Status=status; STD=std, stdlog; Persistent=persist; Options=options, optdisplay} = state
+    let {Renders=renders; Status=status; STD=std, stdlog; RenderAdd=radd; Options=options, optdisplay} = state
     ImGui.BeginMainMenuBar () |> ignore
 
     let opt = ImGui.MenuItem ("Options", true)
@@ -120,14 +123,7 @@ let RenderGui state =
 
     ImGui.BeginWindow("Control Panel") |> ignore
 
-    let inputpathbutton = ImGui.Button "Choose .hip file..."
-
-    ImGui.SameLine ()
-    FileDialog.Render path (FileDialogMsg >> mailbox)
-    path.Selected |> Option.defaultValue "No path specified!" |> ImGui.Text
-
-    let roppath = ImGui.InputText ("ROP node", state.RopNode.contents, TextBufferSize, InputTextFlags.Default, null)
-    ImGui.Checkbox ("Persistent", persist) |> ignore
+    let editormsgs = RenderEditor.Render radd |> List.map RenderAddMsg
 
     let add = ImGui.Button "Add to render queue"
     ImGui.SameLine ()
@@ -203,10 +199,9 @@ let RenderGui state =
         clearstatus |> BoolToEv ClearStatus
         clearstd |> BoolToEv ClearSTD
         opt |> BoolToEv ToggleOptions
-        inputpathbutton |> BoolToEv (FileDialog.Open |> FileDialogMsg)
     ]
 
-    msgs |> List.choose id |> List.iter mailbox
+    msgs |> List.choose id |> (@) editormsgs |> List.iter mailbox
 
     [
         col |> BoolToEv (ChangeBG !options.BG)
