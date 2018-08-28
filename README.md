@@ -1,4 +1,5 @@
 # BatchRender
 Batch render Houdini files.
 
-....it's not so hard... just go to releases & download.
+**First off, make sure you have your desired hbatch.exe in your system PATH.**
+...and then go to releases and download.
