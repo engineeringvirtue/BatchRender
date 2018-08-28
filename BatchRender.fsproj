@@ -15,6 +15,7 @@
     <Compile Include="RenderState.fs" />
     <Compile Include="RenderEditor.fs" />
     
+    <Compile Include="ModalDialog.fs" />
     <Compile Include="State.fs" />
     <Compile Include="RenderInterface.fs" />
     <Compile Include="Update.fs" />

@@ -1,6 +1,7 @@
 module RenderEditor
 open RenderState
 open Utility
+open System.IO
 open ImGuiNET
 
 type State = {
@@ -25,7 +26,7 @@ let Make x =
     let filedialog = FileDialog.Make [".hip"; ".hiplc"; ".hipnc"]
     match x with
         | Some {Render.ROP=rop; Render.Path=path; Render.Persistent=persist} ->
-            {HipPath=filedialog |> FileDialog.SelectFile path; ROP=""; Persistent=persist}
+            {HipPath=filedialog |> FileDialog.SelectFile path; ROP=rop; Persistent=persist}
         | None -> {HipPath = filedialog; ROP=""; Persistent=false}
 
 let Render {HipPath=dialog; ROP=rop; Persistent=persist} =
@@ -38,3 +39,10 @@ let Render {HipPath=dialog; ROP=rop; Persistent=persist} =
     let persistchange = FCheckbox persist ("Persistent") |> Option.map PersistentChange
 
     [choosepath; ropchange; persistchange] |> List.choose id |> (@)filemsgs
+
+let ToRender {HipPath=hippath; ROP=rop; Persistent=persist;} =
+    match hippath.Selected, rop with
+        | None, _ -> Error "Path is empty!"
+        | _, "" -> Error "ROP path is empty!"
+        | Some x, y when File.Exists (x) -> {Path=x; Render.ROP=y; State=NotStarted; Render.Persistent=persist} |> Ok
+        | _ -> Error "Houdini file doesn't exist!"

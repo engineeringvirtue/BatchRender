@@ -12,7 +12,8 @@ type State = {
     Parallel:int;
 
     RenderAdd:RenderEditor.State;
-    Options:Options*bool;
+    RenderEdit: (int*RenderEditor.State) option;
+    Options:Options*ModalDialog.State;
 
     Status: string list;
     STD: string*bool ref;
@@ -26,10 +27,15 @@ type Message =
     | Render
     | StopRender of int
 
-    | ToggleOptions
+    | OptionsDialog of ModalDialog.Message
+    | SetOptions of Options
+
+    | RenderEdit of int
+    | RenderEditClose
+    | RenderEditMsg of RenderEditor.Message
+
     | RenderAddMsg of RenderEditor.Message
 
-    | SetOptions of Options
     | SetParallel of int
 
     | ClearStatus
@@ -38,7 +44,7 @@ type Message =
 
 
 let defaultopt = {BG=System.Numerics.Vector4 (0.0f) |> ref}
-let defaultstate = {Renders=[]; Parallel=1; RenderAdd=RenderEditor.Make None; Options=defaultopt, false; Status=[]; STD="Start of standard output.\n", ref true}
+let defaultstate = {Renders=[]; Parallel=1; RenderAdd=RenderEditor.Make None; RenderEdit=None; Options=defaultopt, ModalDialog.Closed; Status=[]; STD="Start of standard output.\n", ref true}
 let mutable state =
     if File.Exists ("./config.json") then
         File.ReadAllText ("./config.json") |> JsonConvert.DeserializeObject<State>
